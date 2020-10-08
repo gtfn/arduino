@@ -31,6 +31,7 @@ void loop()
 {
   sensors.requestTemperatures();
   read_LM35();
+  read_DS18();
   // send data:  id = 0x00, standard frame, data len = 8, stmp: data buf
   CAN0.sendMsgBuf(0x00, 0, 8, stmp);
   delay(100);                       // send data per 100ms
