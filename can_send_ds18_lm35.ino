@@ -25,13 +25,13 @@ DallasTemperature sensors(&oneWire);
 MCP_CAN CAN0(10);                                      // Set CS to pin 10
 
 // Konstanten
-const long interval = 1000;   // sendeintervall
+const long interval = 2000;   // sendeintervall
 // Variablen
 unsigned long prevMillis = 0; // speichere letzte zeit
-byte State = LOW;             // Status speichern
+
 int resolution = 9;           // sensor resolution
 
-uint16_t can_id[] = { 0x10, 0x20, 0x30, 0x40 }; // different can id's
+uint16_t can_id[] = { 0x00, 0x01, 0x02, 0x03, 0x04 }; // different can id's
 int LM35 = A0; // LM35 an A0
 
 void setup()
@@ -39,30 +39,29 @@ void setup()
   Serial.begin(115200);
   sensors.begin();
   sensors.setResolution(resolution);
-  // init can bus, baudrate: 500k
+  sensors.setWaitForConversion(false);
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  // init can bus, baudrate: 500k, ACHTUNG: auf 8 oder 16MHz Quarz aufpassen!
   if (CAN0.begin(CAN_500KBPS, MCP_8MHz) == CAN_OK) Serial.print("can init ok!!\r\n");
   else Serial.print("Can init fail!!\r\n");
 }
-unsigned char stmp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-unsigned char dtmp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+byte stmp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+byte dtmp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 void loop()
 {
   unsigned long jetztMillis = millis();
   if (jetztMillis - prevMillis >= interval) {
     prevMillis = jetztMillis;
-    if (State == LOW) {
-      State = HIGH;
-      sensors.requestTemperatures();
-    } else {
-      State = LOW;
+
       read_LM35();
       read_DS18();
       // send data:  id = 0x10, standard frame, data len = 8, stmp: data buf
       //CAN0.sendMsgBuf(0x10, 0, 8, stmp);
       //CAN0.sendMsgBuf(can_id[0], 0, 8, stmp);
       send_can(can_id[0], stmp);
-    }
+      send_can(can_id[1], dtmp);
+      sensors.requestTemperatures();
   }
 } //end loop
 
@@ -78,6 +77,6 @@ void read_DS18() {
   }
 }
 
-void send_can(int i, char data) {
+void send_can(uint16_t i, byte data) {
   CAN0.sendMsgBuf(can_id[i], 0, 8, data);
 }
